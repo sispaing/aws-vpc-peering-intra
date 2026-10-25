@@ -1,375 +1,216 @@
-# DevOps Technical Assignment - Scenario 1
-## Incremental/Decremental Counter with AWS Infrastructure
+# aws-vpc-peering-intra
 
-This project implements a complete DevOps solution for Scenario 1, featuring a highly available web application infrastructure on AWS using Terraform, with automated CI/CD pipeline for deployment.
+Two AWS VPCs in the same region, connected with **VPC peering**, built with **Terraform** and run by **HCP Terraform** using a **VCS-driven (GitOps) workflow**.
 
-## 🏗️ Architecture Overview
+- **Frontend VPC:** `10.0.0.0/16`
+- **Backend VPC:** `192.168.0.0/16`
+- **Region:** `ap-southeast-1` (Singapore)
+- **HCP Terraform:** org `nickcloud4t-master`, project `aws-vpc-peering-infra`
 
-### **Infrastructure Components:**
-- **Application Load Balancer (ALB)** - Public-facing, deployed in default VPC public subnets
-- **Auto Scaling Group** - 3 EC2 instances (t2.micro) running nginx in private subnets
-- **Private S3 Bucket** - Stores web content with encryption and versioning
-- **NAT Gateway** - Provides internet access for private subnet instances
-- **Security Groups** - Restricts access to port 80/TCP only
-- **IAM Roles** - Secure S3 access for EC2 instances
-
-### **Network Architecture:**
-```
-Internet
-    |
-Internet Gateway (Default VPC)
-    |
-Public Subnets (Default) ── ALB ── Target Group
-    |                              |
-NAT Gateway                        |
-    |                              |
-Private Subnets (Created) ── EC2 Instances (nginx)
-                                   |
-                              Private S3 Bucket
-```
-
-## 📋 Requirements Fulfilled
-
-### ✅ **Core Infrastructure:**
-- [x] Highly available auto-scaling group of 3 AWS EC2s (Server fleet A, t2.micro)
-- [x] Running nginx to serve public web content
-- [x] Behind a public ALB in Singapore region (ap-southeast-1)
-- [x] EC2 servers download content from private S3 bucket on boot
-- [x] Uses default VPC with existing Internet Gateway, public subnets, default routing
-- [x] Creates private subnets via Terraform
-
-### ✅ **Security & Access:**
-- [x] Restricts inbound access to ALB and Server Fleet A to port 80/TCP only
-- [x] Installs Nginx on Amazon Linux 2
-- [x] Accessible from public internet
-- [x] Private S3 bucket with proper IAM roles
-
-### ✅ **Web Application:**
-- [x] Incremental/Decremental Counter implementation
-- [x] All text changed to uppercase as required
-- [x] Proper HTML, CSS, JavaScript structure
-
-### ✅ **CI/CD Pipeline:**
-- [x] GitLab pipeline updates S3 bucket on master/main branch merge
-- [x] Triggers instance refresh of ASG after successful S3 push
-- [x] Automated deployment workflow
-
-## 🚀 Deployment Instructions
-
-### **Prerequisites:**
-1. AWS Account with appropriate permissions
-2. Terraform >= 1.0 installed
-3. AWS CLI configured
-4. GitLab Repository for CI/CD
-
-### **Step 1: Clone and Setup**
-```bash
-git clone <your-gitlab-repo>
-cd <project-directory>
-```
-
-### **Step 2: Configure AWS Credentials**
-```bash
-aws configure
-# Enter AWS Access Key ID, Secret Access Key, and region (ap-southeast-1)
-```
-
-### **Step 3: Deploy Infrastructure**
-```bash
-# Initialize Terraform
-terraform init
-
-# Review the plan
-terraform plan
-
-# Deploy infrastructure
-terraform apply
-```
-
-### **Step 4: Configure GitLab CI/CD Variables**
-In GitLab Project → Settings → CI/CD → Variables, add:
-- `AWS_ACCESS_KEY_ID`: Your AWS access key
-- `AWS_SECRET_ACCESS_KEY`: Your AWS secret key  
-- `S3_BUCKET`: S3 bucket name (from terraform output)
-- `ASG_NAME`: Auto Scaling Group name (from terraform output)
-
-### **Step 5: Access Application**
-```bash
-# Get ALB DNS name
-terraform output load_balancer_dns
-```
-Access your application at: `http://<alb-dns-name>`
-
-## 📁 Project Structure
-
-```
-├── terraform/
-│   ├── main.tf                 # Main infrastructure configuration
-│   ├── variables.tf            # Terraform variables
-│   ├── outputs.tf              # Terraform outputs
-│   └── user_data.sh           # EC2 bootstrap script
-├── web-content/               # Web application files
-│   ├── index.html             # Main HTML (uppercase text)
-│   ├── style.css              # CSS styles (uppercase comments)
-│   └── script.js              # JavaScript (uppercase comments)
-├── .gitlab-ci.yml             # GitLab CI/CD pipeline
-├── README.md                  # This documentation
-└── screenshots/               # Screenshots for deliverable
-    ├── original-page.png      # Original counter page
-    └── uppercase-page.png     # Modified uppercase page
-```
-
-## 🔒 Security Implementation
-
-### **Network Security:**
-- **Private Subnets**: EC2 instances isolated from direct internet access
-- **Security Groups**: Restrictive rules allowing only port 80/TCP
-- **NAT Gateway**: Controlled outbound internet access for updates
-
-### **Application Security:**
-- **ALB Security Group**: Only allows HTTP (port 80) from internet
-- **EC2 Security Group**: Only allows HTTP from ALB security group
-- **No SSH Access**: Instances managed through Systems Manager if needed
-
-### **Data Security:**
-- **Private S3 Bucket**: No public access, encrypted at rest
-- **IAM Roles**: Least privilege access for EC2 to S3
-- **S3 Versioning**: Enabled for content rollback capability
-
-## 🔄 CI/CD Pipeline Workflow
-
-### **Pipeline Stages:**
-1. **Deploy Stage**: 
-   - Syncs web content to S3 bucket
-   - Triggers on master/main branch merge
-   - Validates file uploads
-
-2. **Refresh Stage**:
-   - Triggers Auto Scaling Group instance refresh
-   - Monitors refresh progress
-   - Ensures rolling update with 50% minimum healthy instances
-
-### **Pipeline Features:**
-- **Automated Deployment**: No manual intervention required
-- **Rolling Updates**: Zero-downtime deployments
-- **Progress Monitoring**: Real-time status updates
-- **Failure Handling**: Pipeline fails if refresh fails
-
-## 📊 Monitoring and Health Checks
-
-### **Application Load Balancer:**
-- **Health Check Path**: `/` (root path)
-- **Health Check Interval**: 30 seconds
-- **Healthy Threshold**: 2 consecutive successes
-- **Unhealthy Threshold**: 2 consecutive failures
-
-### **Auto Scaling Group:**
-- **Health Check Type**: ELB (Application Load Balancer)
-- **Health Check Grace Period**: 300 seconds
-- **Instance Refresh**: Rolling strategy with 50% minimum healthy
-
-### **EC2 Instances:**
-- **Nginx Status**: Monitored via ALB health checks
-- **Content Sync**: Automated S3 sync every 5 minutes via cron
-- **System Updates**: Automated via user data script
-
-## 🏆 Architectural Improvements Recommendations
-
-### **1. Enhanced Security**
-**Current State**: Basic security with security groups and private subnets
-**Improvements**:
-- **HTTPS/TLS**: Implement SSL certificates using AWS Certificate Manager
-- **WAF Integration**: Add AWS WAF for application-layer protection against OWASP Top 10
-- **VPC Flow Logs**: Enable for network traffic analysis and security monitoring
-- **AWS Secrets Manager**: Store sensitive configurations securely
-- **Network ACLs**: Additional subnet-level security controls
-- **AWS GuardDuty**: Threat detection and security monitoring
-
-**Why**: Enhanced security reduces attack surface and provides defense in depth
-
-### **2. High Availability & Disaster Recovery**
-**Current State**: Single region deployment with multi-AZ setup
-**Improvements**:
-- **Multi-Region Deployment**: Deploy across multiple AWS regions for disaster recovery
-- **Cross-Region S3 Replication**: Automatic content replication to secondary region
-- **Route 53 Health Checks**: DNS-level failover with health monitoring
-- **Database Layer**: Add RDS with Multi-AZ and read replicas for data persistence
-- **Backup Strategy**: Automated snapshots and cross-region backup retention
-- **Recovery Time Objective (RTO)**: Target < 15 minutes for failover
-
-**Why**: Ensures business continuity and meets enterprise-level availability requirements
-
-### **3. Performance Optimization**
-**Current State**: Basic ALB with EC2 instances
-**Improvements**:
-- **CloudFront CDN**: Global content delivery network for static assets
-- **ElastiCache**: Redis/Memcached for application caching and session storage
-- **Auto Scaling Policies**: CPU/memory-based scaling with predictive scaling
-- **Application Load Balancer Stickiness**: Session persistence for stateful applications
-- **Instance Types**: Right-size instances based on actual usage patterns
-- **Spot Instances**: Mix of on-demand and spot instances for cost optimization
-
-**Why**: Improves user experience and reduces latency globally
-
-### **4. Monitoring & Observability**
-**Current State**: Basic ALB health checks
-**Improvements**:
-- **CloudWatch Dashboards**: Comprehensive monitoring with custom metrics
-- **CloudWatch Alarms**: Proactive alerting for critical thresholds
-- **AWS X-Ray**: Distributed tracing for application performance insights
-- **ELK Stack**: Centralized logging with Elasticsearch, Logstash, Kibana
-- **Prometheus & Grafana**: Advanced metrics collection and visualization
-- **Application Performance Monitoring (APM)**: New Relic, Datadog integration
-- **Synthetic Monitoring**: Automated testing from multiple global locations
-
-**Why**: Provides visibility into application performance and enables proactive issue resolution
-
-### **5. Cost Optimization**
-**Current State**: Fixed capacity with basic resource allocation
-**Improvements**:
-- **Reserved Instances**: 1-3 year commitments for predictable workloads (up to 75% savings)
-- **Spot Instances**: Use for non-critical workloads (up to 90% savings)
-- **Auto Scaling Schedules**: Scale down during off-peak hours
-- **S3 Lifecycle Policies**: Automatic transition to IA, Glacier for older content
-- **CloudWatch Cost Anomaly Detection**: Automated cost monitoring and alerts
-- **AWS Cost Explorer**: Regular cost analysis and optimization recommendations
-- **Resource Tagging Strategy**: Detailed cost allocation and chargeback
-
-**Why**: Reduces operational costs while maintaining performance and availability
-
-### **6. DevOps & Automation Enhancement**
-**Current State**: Basic GitLab CI/CD pipeline
-**Improvements**:
-- **Infrastructure as Code (IaC)**: Complete GitOps workflow with Terraform Cloud
-- **Blue-Green Deployments**: Zero-downtime deployment strategy
-- **Canary Releases**: Gradual rollout with automated rollback on failure
-- **Automated Testing**: Unit, integration, and end-to-end testing in pipeline
-- **Security Scanning**: SAST, DAST, dependency scanning in CI/CD
-- **Configuration Management**: Ansible/Chef for configuration drift prevention
-- **Container Orchestration**: Migration to EKS for microservices architecture
-
-**Why**: Improves deployment reliability and reduces manual intervention
-
-### **7. Compliance & Governance**
-**Current State**: Basic AWS resource management
-**Improvements**:
-- **AWS Config**: Configuration compliance monitoring and remediation
-- **CloudTrail**: Comprehensive API call auditing and compliance reporting
-- **AWS Organizations**: Multi-account governance with Service Control Policies
-- **Policy as Code**: Automated compliance checking with Open Policy Agent
-- **Data Classification**: Implement data tagging and handling policies
-- **Audit Logging**: Centralized audit trail for compliance requirements
-- **Access Management**: Implement least privilege with regular access reviews
-
-**Why**: Ensures regulatory compliance and reduces security risks
-
-### **8. Scalability & Modernization**
-**Current State**: Monolithic application on EC2
-**Improvements**:
-- **Microservices Architecture**: Break down application into smaller, manageable services
-- **Container Orchestration**: EKS/ECS for container management and orchestration
-- **API Gateway**: Centralized API management with rate limiting and authentication
-- **Event-Driven Architecture**: SQS/SNS for decoupled, asynchronous communication
-- **Serverless Components**: Lambda functions for event processing
-- **Database Modernization**: DynamoDB for NoSQL requirements, Aurora Serverless
-- **Service Mesh**: Istio/App Mesh for service-to-service communication
-
-**Why**: Enables independent scaling and deployment of application components
-
-## 🔧 Troubleshooting Guide
-
-### **Common Issues & Solutions:**
-
-#### **1. Terraform Apply Fails**
-**Symptoms**: Error during terraform apply
-**Solutions**:
-```bash
-# Check AWS credentials
-aws sts get-caller-identity
-
-# Verify region and availability zones
-aws ec2 describe-availability-zones --region ap-southeast-1
-
-# Check for resource limits
-aws service-quotas get-service-quota --service-code ec2 --quota-code L-1216C47A
-```
-
-#### **2. EC2 Instances Unhealthy**
-**Symptoms**: Instances failing ALB health checks
-**Solutions**:
-```bash
-# Check security group rules
-aws ec2 describe-security-groups --group-ids <sg-id>
-
-# Verify nginx status via Systems Manager
-aws ssm send-command --document-name "AWS-RunShellScript"   --parameters 'commands=["systemctl status nginx"]'   --targets "Key=tag:Name,Values=counter-app-asg-instance"
-
-# Check user data execution logs
-# Connect via Session Manager and check: /var/log/cloud-init-output.log
-```
-
-#### **3. GitLab Pipeline Failures**
-**Symptoms**: CI/CD pipeline failing
-**Solutions**:
-- Verify all CI/CD variables are set correctly
-- Check AWS permissions for pipeline user
-- Ensure S3 bucket and ASG names match terraform outputs
-- Review pipeline logs for specific error messages
-
-#### **4. Application Not Accessible**
-**Symptoms**: Cannot access application via ALB DNS
-**Solutions**:
-```bash
-# Check ALB status
-aws elbv2 describe-load-balancers --names counter-app-alb
-
-# Verify target group health
-aws elbv2 describe-target-health --target-group-arn <target-group-arn>
-
-# Test connectivity
-curl -I http://<alb-dns-name>
-```
-
-## 🧹 Clean Up
-
-### **Destroy Infrastructure:**
-```bash
-# Destroy all resources
-terraform destroy
-
-# Verify S3 bucket is empty before destruction
-aws s3 rm s3://<bucket-name> --recursive
-```
-
-### **Cost Considerations:**
-- **NAT Gateway**: ~$32/month per gateway
-- **Application Load Balancer**: ~$16/month
-- **EC2 Instances**: 3 × t2.micro (~$8.5/month each in Singapore)
-- **S3 Storage**: Minimal cost for web content
-- **Data Transfer**: Varies based on usage
-
-## 📸 Screenshots Required
-
-### **Deliverable Screenshots:**
-1. **Original Counter Page**: Screenshot of working incremental/decremental counter
-2. **Uppercase Modified Page**: Screenshot showing uppercase text implementation
-3. **Infrastructure Diagram**: AWS Console showing deployed resources
-4. **Pipeline Success**: GitLab pipeline successful execution
-5. **Monitoring Dashboard**: CloudWatch or monitoring setup
-
-## 📞 Support & Documentation
-
-### **Reference Links:**
-- [AWS Auto Scaling Instance Refresh](https://docs.aws.amazon.com/autoscaling/ec2/userguide/asg-instance-refresh.html)
-- [GeeksforGeeks Counter Tutorial](https://www.geeksforgeeks.org/how-to-make-incremental-and-decremental-counter-using-html-css-and-javascript/)
-- [Terraform AWS Provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
-- [GitLab CI/CD Documentation](https://docs.gitlab.com/ee/ci/)
-
-### **Contact Information:**
-- **Project Repository**: <your-gitlab-repo-url>
-- **Documentation**: This README.md
-- **Issues**: GitLab Issues tracker
+Only `private-subnet02 <-> private-subnet02` and `private-subnet03 <-> private-subnet03` can talk across the peering. Everything else is blocked by route tables and security groups.
 
 ---
 
-**Note**: This implementation fully satisfies all Scenario 1 requirements including infrastructure setup, security controls, CI/CD automation, and architectural best practices. The solution is production-ready and follows AWS Well-Architected Framework principles.
+## Architecture
+
+```
+            frontend-vpc 10.0.0.0/16                     backend-vpc 192.168.0.0/16
+ ┌───────────────────────────────────────┐     ┌───────────────────────────────────────┐
+ │ pub-subnet1  bastion/web + NAT GW     │     │ pub-subnet1  bastion/web + NAT GW     │
+ │ pub-subnet2 / pub-subnet3             │     │ pub-subnet2 / pub-subnet3             │
+ │                                       │     │                                       │
+ │ pri-subnet1  private-instance01 ─NAT  │     │ pri-subnet1  private-instance01 ─NAT  │
+ │ pri-subnet2  private-instance02 ──────┼─pcx─┼─ private-instance02  pri-subnet2      │
+ │ pri-subnet3  private-instance03 ──────┼─pcx─┼─ private-instance03  pri-subnet3      │
+ └───────────────────────────────────────┘     └───────────────────────────────────────┘
+```
+
+| Subnet | Frontend | Backend |
+|---|---|---|
+| pub-subnet1 / 2 / 3 | 10.0.1-3.0/24 | 192.168.1-3.0/24 |
+| pri-subnet1 (internet via NAT) | 10.0.253.0/24 | 192.168.253.0/24 |
+| pri-subnet2 (peered) | 10.0.254.0/24 | 192.168.254.0/24 |
+| pri-subnet3 (peered) | 10.0.255.0/24 | 192.168.255.0/24 |
+
+| Route table | Routes |
+|---|---|
+| public-rtb | local, `0.0.0.0/0 -> IGW` |
+| private-rtb-01 | local, `0.0.0.0/0 -> NAT` |
+| private-rtb-02 | local, other VPC's pri-subnet2 `-> pcx` |
+| private-rtb-03 | local, other VPC's pri-subnet3 `-> pcx` |
+
+| Security group | Inbound | Outbound |
+|---|---|---|
+| pub-sg01 | SSH, ICMP, HTTP, HTTPS | all |
+| pri-sg01 | SSH + ICMP from pub-sg01 | all |
+| pri-sg02 | SSH + ICMP from own pri-sg01 and other VPC's pri-sg02 | SSH + ICMP to other VPC's pri-sg02 |
+| pri-sg03 | SSH + ICMP from own pri-sg01 and other VPC's pri-sg03 | SSH + ICMP to other VPC's pri-sg03 |
+
+---
+
+## Repository layout
+
+One folder per HCP Terraform workspace. Workspaces share values with `terraform_remote_state`.
+
+```
+aws-vpc-peering-intra/
+├── fe-network/    frontend VPC, subnets, IGW, NAT, route tables
+├── be-network/    backend VPC, subnets, IGW, NAT, route tables + VPC peering + peering routes
+├── fe-security/   frontend security groups
+├── be-security/   backend security groups + cross-VPC SG rules (both sides)
+├── fe-compute/    frontend key pair, bastion/web instance, 3 private instances
+├── be-compute/    backend key pair, bastion/web instance, 3 private instances
+├── .gitignore
+└── README.md
+```
+
+| Folder | Workspace | Reads outputs from |
+|---|---|---|
+| fe-network | fe-network-ws | – |
+| be-network | be-network-ws | fe-network-ws |
+| fe-security | fe-security-ws | fe-network-ws |
+| be-security | be-security-ws | be-network-ws, fe-security-ws |
+| fe-compute | fe-compute-ws | fe-network-ws, fe-security-ws |
+| be-compute | be-compute-ws | be-network-ws, be-security-ws |
+
+Peering and the cross-VPC rules live on the backend side to avoid a circular dependency: the frontend is built first, then the backend creates the links.
+
+---
+
+## Branching and workflow
+
+`main` is **production**. All 6 workspaces track `main`. Each folder has its own working branch.
+
+```
+fe-network  ─┐
+be-network  ─┤
+fe-security ─┤  push  ──▶  Pull request to main  ──▶  speculative plan (review)
+be-security ─┤                    │
+fe-compute  ─┤                  merge
+be-compute  ─┘                    ▼
+                                main  ──▶  HCP Terraform plan + apply (auto)  ──▶  AWS
+```
+
+| Event | What HCP Terraform does |
+|---|---|
+| Push to a working branch | nothing |
+| Pull request opened / updated (into `main`) | **speculative plan** for the workspace whose folder changed, shown on the PR |
+| PR merged into `main` | **plan + auto-apply** in that workspace |
+| A workspace finishes applying | **run triggers** start the downstream workspaces |
+
+Rules:
+
+- `main` is protected: no direct pushes, no force pushes, changes only through a pull request with a passing Terraform check.
+- Only edit **your branch's own folder** in that branch.
+- Always update your branch from `main` before starting work.
+
+### Make a change
+
+```bash
+git checkout fe-security
+git pull origin main                 # start from production
+# edit files in fe-security/ only
+git add fe-security/
+git commit -m "fe-security: describe the change"
+git push
+```
+
+1. On GitHub, open a pull request: **base `main` ← compare `fe-security`**.
+2. Wait for `Terraform Cloud/nickcloud4t-master/fe-security-ws` to pass, and read the plan (**Details**).
+3. **Merge.** fe-security-ws plans and applies automatically; run triggers update the downstream workspaces.
+
+---
+
+## HCP Terraform setup
+
+**Variable set** `vpc-peering-variables` (scope: entire project):
+
+| Key | Category | Sensitive |
+|---|---|---|
+| `AWS_ACCESS_KEY_ID` | env | yes |
+| `AWS_SECRET_ACCESS_KEY` | env | yes |
+
+**Each workspace** (`fe-network-ws` ... `be-compute-ws`):
+
+| Setting | Value |
+|---|---|
+| Workflow | Version control (GitHub App), repo `sispaing/aws-vpc-peering-intra` |
+| Terraform working directory | the folder name, e.g. `fe-network` |
+| VCS branch | `main` |
+| Automatic run triggering | only when files change, pattern `<folder>/**/*` |
+| Automatic speculative plans | on |
+| Auto-apply (VCS runs and run triggers) | on |
+| Remote state sharing | share with all workspaces in the organization |
+
+**Run triggers:**
+
+| Workspace | Source workspaces |
+|---|---|
+| be-network-ws | fe-network-ws |
+| fe-security-ws | fe-network-ws |
+| be-security-ws | be-network-ws, fe-security-ws |
+| fe-compute-ws | fe-network-ws, fe-security-ws |
+| be-compute-ws | be-network-ws, be-security-ws |
+
+A new VCS workspace must have **one run started manually** before GitHub events trigger it.
+
+---
+
+## Build and destroy order
+
+**Build:** fe-network → be-network → fe-security → be-security → fe-compute → be-compute
+
+**Destroy** (each workspace: Settings → Destruction and Deletion → Queue destroy plan):
+be-compute → fe-compute → be-security → fe-security → be-network → fe-network
+
+---
+
+## Access and testing
+
+Get the SSH keys (stored in HCP Terraform state, never in Git):
+
+```bash
+cd fe-compute && terraform init
+terraform output -raw fe_instances_private_key > ~/.ssh/fe-sshkey.pem
+cd ../be-compute && terraform init
+terraform output -raw be_instances_private_key > ~/.ssh/be-sshkey.pem
+chmod 400 ~/.ssh/*-sshkey.pem
+```
+
+Web page on each bastion:
+
+```bash
+curl http://<frontend_public_instance_public_ip>
+curl http://<backend_public_instance_public_ip>
+```
+
+SSH path (each hop is only allowed from the one before it):
+
+```bash
+ssh-add --apple-use-keychain ~/.ssh/fe-sshkey.pem ~/.ssh/be-sshkey.pem
+ssh -A ec2-user@<fe-public-ip>        # bastion
+ssh -A ubuntu@<fe-private-01-ip>       # 10.0.253.x
+ssh -A ubuntu@<fe-private-02-ip>       # 10.0.254.x
+ssh ubuntu@<be-private-02-ip>          # 192.168.254.x over peering
+```
+
+Expected results from frontend-private-instance02:
+
+| Test | Result |
+|---|---|
+| ping / SSH backend-private-instance02 | OK (peering) |
+| ping backend-private-instance03 | blocked (02 only talks to 02) |
+| ping 8.8.8.8 | blocked (no NAT route on rtb-02) |
+
+---
+
+## Security notes
+
+- Never commit `*.pem`, `*.tfstate`, `.terraform/` or `*.tfvars` (see `.gitignore`).
+- AWS keys live only in the HCP Terraform variable set.
+- `pub-sg01` allows SSH from `0.0.0.0/0` for the lab; tighten it to your own IP/32.
+- NAT gateways and Elastic IPs cost money every hour: destroy the lab when not in use.
+
+---
+
+Based on the `aws-vpc-peering-intra` lab by Sai Linn Thu (GitLab `sailinnthu/terraform-aws-bastion-host`), split into 6 HCP Terraform workspaces.
