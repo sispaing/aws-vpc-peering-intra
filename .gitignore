@@ -1,0 +1,13 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+*.tfvars.json
+*.pem
+*.key
+*sshkey*
+ec2-user@*
+ubuntu@*
+*.zip
+.DS_Store
